@@ -285,6 +285,18 @@
 
     // Inicializace Firebase
     firebase.initializeApp(firebaseConfig);
+
+    // --- ZDE JE DOPLNĚNÁ OFFLINE PODPORA ---
+    firebase.database().enablePersistence()
+      .catch(function(err) {
+        if (err.code == 'failed-precondition') {
+            console.warn("Offline persistence selhala: Aplikace je asi otevřená v jiném tabu.");
+        } else if (err.code == 'unimplemented') {
+            console.warn("Tento prohlížeč nepodporuje offline persistenci.");
+        }
+      });
+    // --- KONEC DOPLNĚNÍ ---
+    
     const db = firebase.database();
 
     let fuelEntries = [];
