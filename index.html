@@ -40,8 +40,9 @@
         /* Horní karty se statistikami */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
+            width: 100%;
             margin-bottom: 25px;
         }
 
@@ -49,9 +50,12 @@
             background: var(--card-bg);
             border: 3px solid var(--card-border);
             border-radius: 12px;
-            padding: 15px 5px;
+            padding: 15px;
             text-align: center;
             box-shadow: 0 4px 0px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .stat-card.active {
@@ -149,6 +153,11 @@
             <small>l/100km</small>
         </div>
         <div class="stat-card">
+            <span>Průměrná cena</span>
+            <strong id="avg-price-val">0</strong>
+            <small>Kč/l</small>
+        </div>
+        <div class="stat-card">
             <span>Najeto</span>
             <strong id="km-val">0</strong>
             <small>km</small>
@@ -181,6 +190,9 @@
             <option value="Ostatní">Ostatní</option>
         </select>
         <button type="button" onclick="addEntry()">Uložit tankování</button>
+        <button type="button" onclick="deleteLastEntry()" style="background-color: #6c757d; margin-top: 10px;">
+            Smazat poslední záznam
+        </button>
     </div>
     <div style="text-align: center; margin-top: 30px; margin-bottom: 50px;">
     <span onclick="resetData()" style="color: #8b4513; cursor: pointer; text-decoration: underline; font-size: 14px; opacity: 0.7;">
@@ -254,71 +266,144 @@
 
         alert("Tankování uloženo!"); 
     }
-    function updateStats() {
-        if (fuelEntries.length === 0) return;
 
-        // Celkem ujeto: Aktuální stav minus tvůj pevný start
+    function updateStats() {
+        // Pokud je historie prázdná, nastavíme všude nuly a skončíme
+        if (fuelEntries.length === 0) {
+            document.getElementById('km-val').innerText = '0';
+            document.getElementById('cost-val').innerText = '0';
+            document.getElementById('avg-val').innerText = '0';
+            document.getElementById('avg-price-val').innerText = '0';
+            return;
+        }
+
+        // 1. Celkem ujeto (poslední stav tachometru minus tvůj pevný začátek)
         const currentOdo = fuelEntries[fuelEntries.length - 1].odo;
         const totalKm = currentOdo - START_ODO;
         document.getElementById('km-val').innerText = totalKm > 0 ? totalKm : 0;
 
-        // Celkem zaplaceno
+        // 2. Celkem zaplaceno (součet všech tankování)
         const totalCost = fuelEntries.reduce((sum, entry) => sum + (entry.price * entry.liters), 0);
         document.getElementById('cost-val').innerText = Math.round(totalCost);
 
-        // Průměrná spotřeba: Všechny litry / ujeté km od START_ODO
+        // 3. Celkem natankováno litrů (potřebujeme pro průměry)
         const totalLiters = fuelEntries.reduce((sum, entry) => sum + entry.liters, 0);
+
+        // 4. Průměrná spotřeba (litry / kilometry * 100)
         if (totalKm > 0) {
             const avgConsumption = (totalLiters / totalKm) * 100;
             document.getElementById('avg-val').innerText = avgConsumption.toFixed(2);
+        } else {
+            document.getElementById('avg-val').innerText = '0';
+        }
+
+        // 5. Průměrná cena za litr (celková cena / celkem litrů)
+        if (totalLiters > 0) {
+            const avgPrice = totalCost / totalLiters;
+            document.getElementById('avg-price-val').innerText = avgPrice.toFixed(2);
+        } else {
+            document.getElementById('avg-price-val').innerText = '0';
         }
     }
 
     function renderChart() {
-        const ctx = document.getElementById('fuelChart').getContext('2d');
+        const canvas = document.getElementById('fuelChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        
         let chartLabels = [];
-        let chartData = [];
+        let consumptionData = [];
+        let priceData = [];
 
-        // Logika pro graf
         for (let i = 0; i < fuelEntries.length; i++) {
-            // Pokud je to první záznam, počítá kilometry od START_ODO
             const prevOdo = (i === 0) ? START_ODO : fuelEntries[i-1].odo;
             const kmDiff = fuelEntries[i].odo - prevOdo;
             
             if (kmDiff > 0) {
                 const consumption = (fuelEntries[i].liters / kmDiff) * 100;
                 chartLabels.push(fuelEntries[i].date);
-                chartData.push(consumption.toFixed(2));
+                consumptionData.push(consumption.toFixed(2));
+                priceData.push(fuelEntries[i].price); // Přidáváme cenu za litr
             }
         }
 
-        const lastLabels = chartLabels.slice(-10);
-        const lastData = chartData.slice(-10);
-
         if (myChart) myChart.destroy();
+        
         myChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: lastLabels,
-                datasets: [{
-                    data: lastData,
-                    borderColor: '#c45a24',
-                    backgroundColor: 'rgba(196, 90, 36, 0.2)',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4
-                }]
+                labels: chartLabels.slice(-10),
+                datasets: [
+                    {
+                        label: 'Spotřeba (l/100km)',
+                        data: consumptionData.slice(-10),
+                        borderColor: '#c45a24', // Oranžová (terakota)
+                        backgroundColor: 'rgba(196, 90, 36, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        yAxisID: 'y' // Levá osa
+                    },
+                    {
+                        label: 'Cena (Kč/l)',
+                        data: priceData.slice(-10),
+                        borderColor: '#4a6fa5', // Modrá pro kontrast
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        borderDash: [5, 5], // Přerušovaná čára pro cenu
+                        pointStyle: 'circle',
+                        tension: 0.1,
+                        yAxisID: 'y1' // Pravá osa
+                    }
+                ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                    legend: { display: true, position: 'bottom' } // Zapneme legendu, ať víš, co je co
+                },
                 scales: {
-                    y: { beginAtZero: false, grid: { color: '#dcd7cc' } },
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'l/100km' },
+                        beginAtZero: false
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'Kč/l' },
+                        grid: { drawOnChartArea: false }, // Aby se mřížky netloukly
+                        beginAtZero: false
+                    },
                     x: { grid: { display: false } }
                 }
             }
         });
+    }
+
+    function deleteLastEntry() {
+        if (fuelEntries.length === 0) {
+            alert("Není co mazat, historie je prázdná.");
+            return;
+        }
+
+        if (confirm("Opravdu chceš smazat úplně poslední zadané tankování?")) {
+            // Odstraní poslední prvek z pole
+            fuelEntries.pop();
+            
+            // Uloží aktualizované pole zpět do paměti
+            localStorage.setItem('fuelEntries', JSON.stringify(fuelEntries));
+            
+            // Refresh statistik a grafu
+            updateStats();
+            renderChart();
+            
+            alert("Poslední záznam byl odstraněn.");
+        }
     }
 
     function resetData() {
