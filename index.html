@@ -192,7 +192,7 @@
             font-size: 15px;
             margin-top: 15px;
             cursor: pointer;
-            box-shadow: 0 4px 0px #9e461a;
+            box-shadow: 0 4px 0px rgba(0,0,0,0.1);
             transition: transform 0.1s;
         }
 
@@ -231,7 +231,9 @@
     </div>
 
     <div class="total-odo-bar">
-        Aktuální stav tachometru: <strong id="total-odo-val">0</strong> km
+        Aktuální stav tachometru: <strong id="total-odo-val">0</strong> km 
+        <span style="margin: 0 10px; opacity: 0.5;">|</span> 
+        Průměr: <strong id="cost-per-km">0.00</strong> Kč/km
     </div>
 
     <div class="filter-container">
@@ -354,6 +356,7 @@
             document.getElementById('cost-val').innerText = '0';
             document.getElementById('avg-val').innerText = '0';
             document.getElementById('avg-price-val').innerText = '0';
+            document.getElementById('cost-per-km').innerText = '0.00'; // NOVÉ: Reset hodnoty
             return;
         }
 
@@ -369,8 +372,13 @@
         if (totalKm > 0) {
             const avgConsumption = (totalLiters / totalKm) * 100;
             document.getElementById('avg-val').innerText = avgConsumption.toFixed(2);
+            
+            // NOVÉ: Výpočet ceny na 1 km
+            const costPerKm = totalCost / totalKm;
+            document.getElementById('cost-per-km').innerText = costPerKm.toFixed(2);
         } else {
             document.getElementById('avg-val').innerText = '0';
+            document.getElementById('cost-per-km').innerText = '0.00'; // NOVÉ
         }
 
         if (totalLiters > 0) {
@@ -379,12 +387,13 @@
         } else {
             document.getElementById('avg-price-val').innerText = '0';
         }
-        if (fuelEntries.length > 0) {
-        const lastOdo = fuelEntries[fuelEntries.length - 1].odo;
-        document.getElementById('total-odo-val').innerText = lastOdo.toLocaleString('cs-CZ');
-    }
-    }
 
+        if (fuelEntries.length > 0) {
+            const lastOdo = fuelEntries[fuelEntries.length - 1].odo;
+            document.getElementById('total-odo-val').innerText = lastOdo.toLocaleString('cs-CZ');
+        }
+    }
+    
     // Skriptík pro přepínání tlačítek u grafu
     function setFilter(filter) {
         currentFilter = filter;
