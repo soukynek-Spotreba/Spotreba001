@@ -1,0 +1,16 @@
+{
+  "name": "Moje Spotřeba",
+  "short_name": "Spotřeba",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f9f3e6",
+  "theme_color": "#c45a24",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
