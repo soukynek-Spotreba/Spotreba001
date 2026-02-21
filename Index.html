@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Moje Spotřeba</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            /* Barvy podle obrázku */
+            --bg-color: #f9f3e6;        /* Krémové pozadí */
+            --primary: #c45a24;        /* Terakotová / Oranžovo-hnědá */
+            --text-main: #b85c2c;      /* Barva nadpisů */
+            --card-bg: #e6e0d3;        /* Šedobéžová pro karty a sekce */
+            --card-border: #635a52;    /* Tmavě hnědá pro okraje */
+            --input-bg: #f2ede4;       /* Světlejší krémová pro vstupy */
+            --font-dark: #4a443f;      /* Tmavý text */
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--font-dark);
+            margin: 0;
+            padding: 20px;
+            max-width: 500px;
+            margin: auto;
+            align-items: center; /* Horizontální centr */
+        }
+
+        h2 {
+            text-align: center; /* Nadpis na střed */
+            color: var(--text-main);
+            font-size: 28px;
+            margin-bottom: 25px;
+            font-weight: 700;
+        }
+
+        /* Horní karty se statistikami */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: var(--card-bg);
+            border: 3px solid var(--card-border);
+            border-radius: 12px;
+            padding: 15px 5px;
+            text-align: center;
+            box-shadow: 0 4px 0px rgba(0,0,0,0.1);
+        }
+
+        .stat-card.active {
+            border-color: var(--primary); /* První karta má zvýrazněný okraj */
+        }
+
+        .stat-card span {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .stat-card strong {
+            font-size: 24px;
+            color: var(--font-dark);
+        }
+
+        .stat-card small {
+            font-size: 12px;
+            display: block;
+        }
+
+        /* Sekce pro graf a formulář */
+        .section-container {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .section-title {
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: var(--font-dark);
+        }
+
+        /* Graf */
+        canvas {
+            background: var(--input-bg);
+            border-radius: 10px;
+            padding: 10px;
+        }
+
+        /* Formulářové prvky */
+        input, select {
+            width: 100%;
+            background-color: var(--input-bg);
+            border: none;
+            border-bottom: 2px solid #ccc;
+            padding: 14px;
+            margin: 8px 0;
+            border-radius: 8px;
+            font-size: 16px;
+            color: var(--font-dark);
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            outline: none;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        /* Tlačítko */
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 16px;
+            width: 100%;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 18px;
+            margin-top: 15px;
+            cursor: pointer;
+            box-shadow: 0 4px 0px #9e461a;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0px #9e461a;
+        }
+    </style>
+</head>
+<body>
+
+    <h2> Spotřeba</h2>
+    
+    <div class="stats-grid">
+        <div class="stat-card active">
+            <span>Průměr</span>
+            <strong id="avg-val">0</strong>
+            <small>l/100km</small>
+        </div>
+        <div class="stat-card">
+            <span>Najeto</span>
+            <strong id="km-val">0</strong>
+            <small>km</small>
+        </div>
+        <div class="stat-card">
+            <span>Celkem</span>
+            <strong id="cost-val">0</strong>
+            <small>Kč</small>
+        </div>
+    </div>
+
+    <div class="section-container">
+        <div class="section-title">Posledních 10 spotřeb</div>
+        <div style="position: relative; height: 200px; width: 100%;">
+            <canvas id="fuelChart"></canvas>
+        </div>
+    </div>
+
+    <div class="section-container">
+        <div class="section-title">Nový záznam</div>
+        <input type="number" id="price" placeholder="Cena za litr (Kč/l)" step="0.1">
+        <input type="number" id="liters" placeholder="Natankováno litrů" step="0.1">
+        <input type="number" id="odo" placeholder="Stav tachometru (km)">
+        <select id="station">
+            <option value="Benzina/ORLEN">Benzina/ORLEN</option>
+            <option value="Shell">Shell</option>
+            <option value="OMV">OMV</option>
+            <option value="MOL">MOL</option>
+            <option value="EuroOil">EuroOil</option>
+            <option value="Ostatní">Ostatní</option>
+        </select>
+        <button type="button" onclick="addEntry()">Uložit tankování</button>
+    </div>
+    <div style="text-align: center; margin-top: 30px; margin-bottom: 50px;">
+    <span onclick="resetData()" style="color: #8b4513; cursor: pointer; text-decoration: underline; font-size: 14px; opacity: 0.7;">
+        Vymazat všechna data a resetovat historii
+    </span>
+    </div>
+
+<script>
+    let fuelEntries = JSON.parse(localStorage.getItem('fuelEntries')) || [];
+    const START_ODO = 93208; // SEM NAPPIŠ SVŮJ AKTUÁLNÍ STAV TACHOMETRU (např. 93208)
+    let myChart;
+
+    // Inicializace při načtení
+    window.onload = function() {
+        updateStats();
+        renderChart();
+    };
+
+    function addEntry() {
+        console.log("Kliknuto na tlačítko"); // Pro kontrolu v prohlížeči
+
+        // 1. Získání elementů
+        const priceEl = document.getElementById('price');
+        const litersEl = document.getElementById('liters');
+        const odoEl = document.getElementById('odo');
+        const stationEl = document.getElementById('station');
+
+        // 2. Ošetření vstupů (převod čárky na tečku pro mobil)
+        const priceVal = priceEl.value.replace(',', '.');
+        const litersVal = litersEl.value.replace(',', '.');
+        
+        const price = parseFloat(priceVal);
+        const liters = parseFloat(litersVal);
+        const odo = parseInt(odoEl.value);
+        const station = stationEl.value;
+
+        // Kontrola pro ladění (pokud by to stále nešlo, tohle ti napoví)
+        if (isNaN(price) || isNaN(liters) || isNaN(odo)) {
+            alert("Chyba v datech! \nCena: " + priceValue + " \nLitry: " + litersValue + " \nTachometr: " + odoEl.value);
+            return;
+        }
+
+        // Přísná kontrola vstupů
+        if (isNaN(price) || isNaN(liters) || isNaN(odo)) {
+            alert("Musíš vyplnit všechna čísla: Cenu, Litry i Tachometr!");
+            return;
+        }
+
+        const newEntry = {
+            price,
+            liters,
+            odo,
+            station,
+            date: new Date().toLocaleDateString('cs-CZ'),
+            timestamp: Date.now()
+        };
+
+        // Uložení
+        fuelEntries.push(newEntry);
+        fuelEntries.sort((a, b) => a.odo - b.odo);
+        localStorage.setItem('fuelEntries', JSON.stringify(fuelEntries));
+        
+        // Vyčištění políček
+        priceEl.value = '';
+        litersEl.value = '';
+        odoEl.value = '';
+
+        // Okamžitá aktualizace grafu a statistik
+        updateStats();
+        renderChart();
+
+        alert("Tankování uloženo!"); 
+    }
+    function updateStats() {
+        if (fuelEntries.length === 0) return;
+
+        // Celkem ujeto: Aktuální stav minus tvůj pevný start
+        const currentOdo = fuelEntries[fuelEntries.length - 1].odo;
+        const totalKm = currentOdo - START_ODO;
+        document.getElementById('km-val').innerText = totalKm > 0 ? totalKm : 0;
+
+        // Celkem zaplaceno
+        const totalCost = fuelEntries.reduce((sum, entry) => sum + (entry.price * entry.liters), 0);
+        document.getElementById('cost-val').innerText = Math.round(totalCost);
+
+        // Průměrná spotřeba: Všechny litry / ujeté km od START_ODO
+        const totalLiters = fuelEntries.reduce((sum, entry) => sum + entry.liters, 0);
+        if (totalKm > 0) {
+            const avgConsumption = (totalLiters / totalKm) * 100;
+            document.getElementById('avg-val').innerText = avgConsumption.toFixed(2);
+        }
+    }
+
+    function renderChart() {
+        const ctx = document.getElementById('fuelChart').getContext('2d');
+        let chartLabels = [];
+        let chartData = [];
+
+        // Logika pro graf
+        for (let i = 0; i < fuelEntries.length; i++) {
+            // Pokud je to první záznam, počítá kilometry od START_ODO
+            const prevOdo = (i === 0) ? START_ODO : fuelEntries[i-1].odo;
+            const kmDiff = fuelEntries[i].odo - prevOdo;
+            
+            if (kmDiff > 0) {
+                const consumption = (fuelEntries[i].liters / kmDiff) * 100;
+                chartLabels.push(fuelEntries[i].date);
+                chartData.push(consumption.toFixed(2));
+            }
+        }
+
+        const lastLabels = chartLabels.slice(-10);
+        const lastData = chartData.slice(-10);
+
+        if (myChart) myChart.destroy();
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: lastLabels,
+                datasets: [{
+                    data: lastData,
+                    borderColor: '#c45a24',
+                    backgroundColor: 'rgba(196, 90, 36, 0.2)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: false, grid: { color: '#dcd7cc' } },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function resetData() {
+        if (confirm("Opravdu chceš smazat všechna uložená tankování? Tuto akci nelze vrátit zpět.")) {
+            // Vymaže data z paměti telefonu
+            localStorage.removeItem('fuelEntries');
+            // Resetuje proměnnou v běžícím kódu
+            fuelEntries = [];
+            // Aktualizuje vzhled (vynuluje karty a graf)
+            updateStats();
+            // Vynulování karet natvrdo, pokud by updateStats nestačil
+            document.getElementById('avg-val').innerText = '0';
+            document.getElementById('km-val').innerText = '0';
+            document.getElementById('cost-val').innerText = '0';
+            
+            if (myChart) {
+                myChart.destroy();
+                renderChart();
+            }
+            
+            alert("Data byla vymazána. Můžeš začít znovu od svého nastaveného počátečního stavu.");
+        }
+    }
+</script>
+
+</body>
+</html>
